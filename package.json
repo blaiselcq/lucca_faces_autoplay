@@ -1,0 +1,23 @@
+{
+  "name": "auto-lucca-faces",
+  "version": "0.1.0",
+  "description": "Automated cheater for lucca faces",
+  "main": "index.js",
+  "author": "blaiselcq",
+  "scripts": {
+    "start": "node ./index.js"
+  },
+  "license": "ISC",
+  "dependencies": {
+    "dotenv": "^16.0.0",
+    "puppeteer": "^21.5.2",
+    "puppeteer-extra-plugin-stealth": "^2.11.0"
+  },
+  "engines": {
+    "npm": ">=9.0.0",
+    "node": ">=18.0.0"
+  },
+  "devDependencies": {
+    "prettier": "3.1.0"
+  }
+}
