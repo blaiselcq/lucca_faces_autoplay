@@ -1,5 +1,7 @@
 const logger = require("./logger");
 
+const { hash, writeHash } = require("./faces");
+
 const puppeteer = require("puppeteer-extra");
 const StealthPlugin = require("puppeteer-extra-plugin-stealth");
 puppeteer.use(StealthPlugin());
@@ -21,6 +23,34 @@ class Player {
     if (!this.password) throw "No password provided";
 
     this.normalWait = { timeout: 20_000 };
+    this.shortWait = { timeout: 5_000 };
+  }
+
+  async interceptRequests(page) {
+    // await page.setRequestInterception(true);
+    page.on("response", async (response) => {
+      if (!response.url().endsWith("/picture")) {
+        return;
+      }
+      logger.debug(`Intercept response for ${response.url()}`);
+      if (!response.ok()) {
+        logger.error(`Request for ${response.url()} did not succeed`);
+        return;
+      }
+
+      const content_type = response.headers()["content-type"];
+      if (!(content_type == "image/jpeg" || content_type == "image/png")) {
+        logger.error(
+          `Wrong image (${content_type}) type for ${response.url()}`,
+        );
+        return;
+      }
+
+      const image_hash = await hash(await response.buffer(), content_type);
+      logger.debug("Image hash: {image_hash}");
+
+      await writeHash(image_hash);
+    });
   }
 
   async startupAndLogin() {
@@ -65,10 +95,24 @@ class Player {
     logger.info("Started game");
   }
 
+  async tryGuess(page) {
+    await page.waitForSelector("app-question .image", this.shortWait);
+    const image_url = await page.$eval(
+      "app-question .image",
+      (el) => el.style["background-image"],
+    );
+    // console.log(image_url);
+  }
+
   async play() {
     const page = await this.startupAndLogin();
 
+    await this.interceptRequests(page);
+
     await this.startGame(page);
+    while ((await page.$(".score-header")) != null) {
+      await this.tryGuess(page);
+    }
   }
 }
 
