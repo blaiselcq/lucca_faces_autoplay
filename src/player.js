@@ -1,6 +1,6 @@
 const logger = require("./logger");
 
-const { hash, writeHash } = require("./faces");
+const { hash, writeHash, checkHash, writeName } = require("./faces");
 
 const puppeteer = require("puppeteer-extra");
 const StealthPlugin = require("puppeteer-extra-plugin-stealth");
@@ -24,10 +24,29 @@ class Player {
 
     this.normalWait = { timeout: 20_000 };
     this.shortWait = { timeout: 5_000 };
+
+    this.imagesSeen = {};
+    this.lastQuestion = -1;
+  }
+
+  async waitHasSeenImage(image_number, timeout = 5_000) {
+    const start_time = Date.now();
+
+    while (!(image_number in this.imagesSeen)) {
+      await new Promise((resolve) => setTimeout(resolve, 200));
+    }
+
+    if (Date.now() - start_time >= timeout) {
+      logger.error(
+        `Unable to find image ${image_number} within the specified time.`,
+      );
+      return None;
+    }
+
+    return this.imagesSeen[image_number];
   }
 
   async interceptRequests(page) {
-    // await page.setRequestInterception(true);
     page.on("response", async (response) => {
       if (!response.url().endsWith("/picture")) {
         return;
@@ -46,9 +65,12 @@ class Player {
         return;
       }
 
-      const image_hash = await hash(await response.buffer(), content_type);
-      logger.debug("Image hash: {image_hash}");
+      const image_number = response.url().split("/").at(-2);
 
+      const image_hash = await hash(await response.buffer(), content_type);
+      logger.debug(`Image hash: ${image_hash}`);
+
+      this.imagesSeen[image_number] = image_hash;
       await writeHash(image_hash);
     });
   }
@@ -95,13 +117,75 @@ class Player {
     logger.info("Started game");
   }
 
+  async getQuestionNumber(page) {
+    await page.waitForSelector(".score-tracker.full-test", this.normalWait);
+    return await page.$eval(".score-tracker.full-test", (element) =>
+      [...element.querySelectorAll(".score-tracker-point")].findIndex((x) =>
+        x.classList.contains("is-current"),
+      ),
+    );
+  }
+
+  async selectAnswer(page, name) {
+    await page.$$eval(".answers .answer", (elements) =>
+      elements.find((x) => x.innerText.includes(name)).click(),
+    );
+
+    logger.info(`Selecting answer "${name}"`);
+  }
+
+  async getSolution(page) {
+    await page.waitForSelector(".answers .is-right", this.normalWait);
+
+    return await page.$eval(
+      ".answers .is-right",
+      (element) => element.innerText,
+    );
+  }
+
   async tryGuess(page) {
+    this.lastQuestion = await this.getQuestionNumber(page);
+    if (this.lastQuestion > Object.keys(this.imagesSeen).length) {
+      logger.debug(`Waiting image for question ${question_number + 1}`);
+      await new Promise((resolve) => setTimeout(resolve, 200));
+      return;
+    }
+
     await page.waitForSelector("app-question .image", this.shortWait);
     const image_url = await page.$eval(
       "app-question .image",
       (el) => el.style["background-image"],
     );
-    // console.log(image_url);
+
+    await page.waitForSelector(".answers .answer", this.shortWait);
+    const answers = await page.$$eval(".answers .answer", (elements) =>
+      elements.map((x) => x.innerText),
+    );
+
+    const image_number = image_url.split("/").at(-2);
+
+    const image_hash = await this.waitHasSeenImage(image_number);
+    let name = await checkHash(image_hash);
+    const name_known = name != null;
+
+    if (!name_known) {
+      logger.warn(`Image ${image_hash} not yet known, selecting first answer`);
+      name = answers[0];
+    }
+
+    await this.selectAnswer(page, name);
+    const right_answer = await this.getSolution(page);
+    if (name !== right_answer) {
+      logger.info(`Right answer was ${right_answer}`);
+    }
+
+    if (!name_known) {
+      writeName(image_hash, right_answer);
+    }
+
+    await page.waitForResponse((response) =>
+      response.url().includes("questions/next"),
+    );
   }
 
   async play() {

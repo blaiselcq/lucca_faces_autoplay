@@ -7,7 +7,7 @@
   "scripts": {
     "start": "node ./index.js"
   },
-  "license": "ISC",
+  "license": "unlicense",
   "dependencies": {
     "dotenv": "^16.0.0",
     "image-hash": "^5.3.2",
