@@ -105,7 +105,7 @@ class Player {
 
     logger.info("Succesful log in");
 
-    return page;
+    return { browser, page };
   }
 
   async startGame(page) {
@@ -129,12 +129,11 @@ class Player {
     );
   }
 
-  async selectAnswer(page, name) {
-    await page.$$eval(".answers .answer", (elements) =>
-      elements.find((x) => x.innerText.includes(name)).click(),
-    );
+  async selectAnswer(page, id) {
+    const answer = await page.$$(".answers .answer");
+    await answer[id].click();
 
-    logger.info(`Selecting answer "${name}"`);
+    logger.debug(`Selecting answer "${id}"`);
   }
 
   async getSolution(page) {
@@ -168,21 +167,23 @@ class Player {
     const image_number = image_url.split("/").at(-2);
 
     const image_hash = await this.waitHasSeenImage(image_number);
-    let name = await checkHash(image_hash);
-    const name_known = name != null;
+    const name = await checkHash(image_hash);
+    let answer_id = 0;
 
-    if (!name_known) {
+    if (name == null) {
       logger.warn(`Image ${image_hash} not yet known, selecting first answer`);
-      name = answers[0];
+    } else {
+      logger.info(`Selecting anwser ${name}`);
+      answer_id = answers.findIndex((x) => x.includes(name));
     }
 
-    await this.selectAnswer(page, name);
+    await this.selectAnswer(page, answer_id);
     const right_answer = await this.getSolution(page);
     if (name !== right_answer) {
       logger.info(`Right answer was ${right_answer}`);
     }
 
-    if (!name_known) {
+    if (name == null) {
       writeName(image_hash, right_answer);
     }
 
@@ -192,13 +193,17 @@ class Player {
   }
 
   async play(is_learning = false) {
-    const page = await this.startupAndLogin();
+    const { browser, page } = await this.startupAndLogin();
 
     await this.interceptRequests(page);
 
     await this.startGame(page);
     while ((await page.$(".score-header")) != null && this.lastQuestion < 9) {
       await this.tryGuess(page);
+      if (this.lastQuestion == 8 && is_learning) {
+        await browser.close();
+        break;
+      }
     }
   }
 }
