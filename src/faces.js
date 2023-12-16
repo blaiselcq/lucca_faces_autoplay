@@ -1,27 +1,30 @@
-const fs = require("node:fs/promises");
+import { writeFile, rm, access, readFile } from "node:fs/promises";
+import { logger } from "./logger.js";
 
-const { imageHash } = require("image-hash");
+import { imageHash } from "image-hash";
 
-async function hash(buffer, content_type) {
-  const extension = content_type.split("/")[1];
-  await fs.writeFile("./temp." + extension, buffer);
+async function hash(buffer, extension) {
+  await writeFile("./temp." + extension, buffer);
 
   const image_hash = await new Promise((resolve, reject) => {
     imageHash("./temp." + extension, 8, false, (err, data) => {
       if (err) return reject(err);
       resolve(data);
     });
+  }).catch((error) => {
+    logger.error(error);
+    return undefined;
   });
 
-  await fs.rm("./temp." + extension);
+  await rm("./temp." + extension);
 
   return image_hash;
 }
 
 async function loadHashTable() {
   try {
-    await fs.access("./data.json");
-    const file = await fs.readFile("./data.json");
+    await access("./data.json");
+    const file = await readFile("./data.json");
     return await JSON.parse(file);
   } catch {
     return {};
@@ -36,7 +39,7 @@ async function writeHash(image_hash) {
   }
 
   hashes[image_hash] = null;
-  await fs.writeFile("./data.json", JSON.stringify(hashes));
+  await writeFile("./data.json", JSON.stringify(hashes));
 }
 
 async function checkHash(image_hash) {
@@ -58,7 +61,7 @@ async function writeName(image_hash, name) {
   }
 
   hashes[image_hash] = name;
-  await fs.writeFile("./data.json", JSON.stringify(hashes));
+  await writeFile("./data.json", JSON.stringify(hashes));
 }
 
-module.exports = { hash, writeHash, checkHash, writeName };
+export { hash, writeHash, checkHash, writeName };

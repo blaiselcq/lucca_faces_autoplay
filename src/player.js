@@ -1,9 +1,10 @@
-const logger = require("./logger");
+import { logger } from "./logger.js";
+import imageType from "image-type";
 
-const { hash, writeHash, checkHash, writeName } = require("./faces");
+import { hash, writeHash, checkHash, writeName } from "./faces.js";
 
-const puppeteer = require("puppeteer-extra");
-const StealthPlugin = require("puppeteer-extra-plugin-stealth");
+import puppeteer from "puppeteer-extra";
+import StealthPlugin from "puppeteer-extra-plugin-stealth";
 puppeteer.use(StealthPlugin());
 
 class Player {
@@ -57,18 +58,20 @@ class Player {
         return;
       }
 
-      const content_type = response.headers()["content-type"];
-      if (!(content_type == "image/jpeg" || content_type == "image/png")) {
-        logger.error(
-          `Wrong image (${content_type}) type for ${response.url()}`,
-        );
+      const buffer = await response.buffer();
+      const type = await imageType(buffer);
+      if (!type) {
+        logger.error("Could not determine the image type");
         return;
       }
-
       const image_number = response.url().split("/").at(-2);
 
-      const image_hash = await hash(await response.buffer(), content_type);
+      const image_hash = await hash(buffer, type.ext);
       logger.debug(`Image hash: ${image_hash}`);
+
+      if (image_hash == undefined) {
+        return;
+      }
 
       this.imagesSeen[image_number] = image_hash;
       await writeHash(image_hash);
@@ -188,16 +191,16 @@ class Player {
     );
   }
 
-  async play() {
+  async play(is_learning = false) {
     const page = await this.startupAndLogin();
 
     await this.interceptRequests(page);
 
     await this.startGame(page);
-    while ((await page.$(".score-header")) != null) {
+    while ((await page.$(".score-header")) != null && this.lastQuestion < 9) {
       await this.tryGuess(page);
     }
   }
 }
 
-module.exports = Player;
+export default Player;

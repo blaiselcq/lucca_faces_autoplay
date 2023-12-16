@@ -1,3 +1,3 @@
 #! /usr/bin/node
 
-require("./src/main");
+import "./src/main.js";

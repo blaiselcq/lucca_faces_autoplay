@@ -1,6 +1,7 @@
-require("dotenv").config();
+import dotenv from "dotenv";
+dotenv.config();
 
-const Player = require("./player");
+import Player from "./player.js";
 
 const player = new Player({ headless: false });
 

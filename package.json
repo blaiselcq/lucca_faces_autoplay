@@ -8,9 +8,11 @@
     "start": "node ./index.js"
   },
   "license": "unlicense",
+  "type": "module",
   "dependencies": {
     "dotenv": "^16.0.0",
     "image-hash": "^5.3.2",
+    "image-type": "^5.2.0",
     "puppeteer": "^21.5.2",
     "puppeteer-extra": "^3.3.0",
     "puppeteer-extra-plugin-stealth": "^2.11.0",
