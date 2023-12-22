@@ -1,24 +1,10 @@
-import { writeFile, rm, access, readFile } from "node:fs/promises";
+import { writeFile, access, readFile } from "node:fs/promises";
 import { logger } from "./logger.js";
+import  MurmurHash3 from 'imurmurhash';
 
-import { imageHash } from "image-hash";
 
-async function hash(buffer, extension) {
-  await writeFile("./temp." + extension, buffer);
-
-  const image_hash = await new Promise((resolve, reject) => {
-    imageHash("./temp." + extension, 8, false, (err, data) => {
-      if (err) return reject(err);
-      resolve(data);
-    });
-  }).catch((error) => {
-    logger.error(error);
-    return undefined;
-  });
-
-  await rm("./temp." + extension);
-
-  return image_hash;
+async function hash(buffer) {
+  return MurmurHash3(buffer.toString()).result()
 }
 
 async function loadHashTable() {

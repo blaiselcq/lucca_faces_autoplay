@@ -1,5 +1,4 @@
 import { logger } from "./logger.js";
-import imageType from "image-type";
 
 import { hash, writeHash, checkHash, writeName } from "./faces.js";
 
@@ -59,14 +58,9 @@ class Player {
       }
 
       const buffer = await response.buffer();
-      const type = await imageType(buffer);
-      if (!type) {
-        logger.error("Could not determine the image type");
-        return;
-      }
       const image_number = response.url().split("/").at(-2);
 
-      const image_hash = await hash(buffer, type.ext);
+      const image_hash = await hash(buffer);
       logger.debug(`Image hash: ${image_hash}`);
 
       if (image_hash == undefined) {
