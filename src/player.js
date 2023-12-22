@@ -4,8 +4,8 @@ import imageType from "image-type";
 import { hash, writeHash, checkHash, writeName } from "./faces.js";
 
 import puppeteer from "puppeteer-extra";
-import StealthPlugin from "puppeteer-extra-plugin-stealth";
-puppeteer.use(StealthPlugin());
+// import StealthPlugin from "puppeteer-extra-plugin-stealth";
+// puppeteer.use(StealthPlugin());
 
 class Player {
   constructor(args) {
@@ -34,7 +34,7 @@ class Player {
     const start_time = Date.now();
 
     while (!(image_number in this.imagesSeen)) {
-      await new Promise((resolve) => setTimeout(resolve, 200));
+      await new Promise((resolve) => setTimeout(resolve, 50));
     }
 
     if (Date.now() - start_time >= timeout) {
@@ -149,7 +149,7 @@ class Player {
     this.lastQuestion = await this.getQuestionNumber(page);
     if (this.lastQuestion > Object.keys(this.imagesSeen).length) {
       logger.debug(`Waiting image for question ${question_number + 1}`);
-      await new Promise((resolve) => setTimeout(resolve, 200));
+      await new Promise((resolve) => setTimeout(resolve, 50));
       return;
     }
 

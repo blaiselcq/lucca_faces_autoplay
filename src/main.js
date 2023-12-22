@@ -3,7 +3,7 @@ dotenv.config();
 
 import Player from "./player.js";
 
-const player = new Player({ headless: false });
+const player = new Player({ headless: "new" });
 
 async function main(is_learning) {
   is_learning = process.env.LEARNING;
